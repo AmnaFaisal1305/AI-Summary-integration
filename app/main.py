@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse
 
 from app.api.calls import router as calls_router
@@ -30,10 +31,17 @@ async def swagger_ui() -> HTMLResponse:
     )
 
 
-@app.get("/redoc", include_in_schema=False)
-async def redoc_ui() -> HTMLResponse:
-    from fastapi.openapi.docs import get_redoc_html
-    return get_redoc_html(
-        openapi_url="/openapi.json",
-        title="CRM Pipeline — ReDoc",
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    app.openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+        openapi_version="3.0.3",
     )
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
