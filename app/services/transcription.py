@@ -3,7 +3,9 @@ import os
 import tempfile
 from typing import Literal
 
+from fastapi import HTTPException
 from google import genai
+from google.genai import errors as genai_errors
 from google.genai import types
 
 from app.config import settings
@@ -52,11 +54,11 @@ _PROMPT_BASE = (
     "SPEAKER_1 is the caller, SPEAKER_2 is the callee.\n\n"
     "{script_instruction}\n\n"
     "Return ONLY a valid JSON array. Each element must have exactly these fields:\n"
-    '{"speaker": "SPEAKER_1" or "SPEAKER_2", '
+    '{{"speaker": "SPEAKER_1" or "SPEAKER_2", '
     '"start_time": <float seconds>, '
     '"end_time": <float seconds>, '
     '"text": "<transcribed text>", '
-    '"language": "ur" or "en" or "mixed"}\n\n'
+    '"language": "ur" or "en" or "mixed"}}\n\n'
     "No markdown, no explanation — raw JSON array only."
 )
 
@@ -76,6 +78,15 @@ def _parse_response(raw: str) -> list[dict]:
 def transcribe(audio_bytes: bytes, mime_type: str = "audio/mpeg", script: ScriptMode = "mixed") -> Transcript:
     prompt = _build_prompt(script)
 
+    try:
+      return _transcribe(audio_bytes, mime_type, prompt)
+    except genai_errors.ServerError as e:
+        raise HTTPException(status_code=503, detail=f"Gemini unavailable: {e}")
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
+        raise HTTPException(status_code=502, detail=f"Unexpected Gemini response format: {e}")
+
+
+def _transcribe(audio_bytes: bytes, mime_type: str, prompt: str) -> Transcript:
     if len(audio_bytes) <= _SIZE_THRESHOLD:
         response = _client.models.generate_content(
             model=_MODEL,
