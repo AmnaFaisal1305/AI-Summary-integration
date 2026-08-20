@@ -1,6 +1,7 @@
 import json
 import os
 import tempfile
+from typing import Literal
 
 from google import genai
 from google.genai import types
@@ -11,6 +12,8 @@ from app.models.schemas import Transcript, TranscriptSegment
 _client = genai.Client(api_key=settings.gemini_api_key)
 _MODEL = "gemini-3.6-flash"
 _SIZE_THRESHOLD = 20 * 1024 * 1024  # 20 MB
+
+ScriptMode = Literal["urdu", "roman_urdu", "mixed"]
 
 _EXT_MAP = {
     "audio/wav": ".wav",
@@ -27,10 +30,27 @@ _EXT_MAP = {
     "audio/webm": ".webm",
 }
 
-_PROMPT = (
+_SCRIPT_INSTRUCTIONS = {
+    "urdu": (
+        "Write ALL transcribed text in Urdu script (Arabic letters). "
+        "Even if speakers use English words, transliterate them into Urdu script."
+    ),
+    "roman_urdu": (
+        "Write ALL transcribed text in Roman Urdu (Latin alphabet transliteration). "
+        "Even if speakers use Urdu words, write them in Roman script (e.g. 'Assalam-o-Alaikum', 'theek hai'). "
+        "English words stay in English."
+    ),
+    "mixed": (
+        "Transcribe each word in the script the speaker actually used — "
+        "Urdu script for Urdu words, English letters for English words."
+    ),
+}
+
+_PROMPT_BASE = (
     "Transcribe this stereo business phone call. "
     "The audio is in Urdu with English code-switching. "
     "SPEAKER_1 is the caller, SPEAKER_2 is the callee.\n\n"
+    "{script_instruction}\n\n"
     "Return ONLY a valid JSON array. Each element must have exactly these fields:\n"
     '{"speaker": "SPEAKER_1" or "SPEAKER_2", '
     '"start_time": <float seconds>, '
@@ -41,6 +61,10 @@ _PROMPT = (
 )
 
 
+def _build_prompt(script: ScriptMode) -> str:
+    return _PROMPT_BASE.format(script_instruction=_SCRIPT_INSTRUCTIONS[script])
+
+
 def _parse_response(raw: str) -> list[dict]:
     raw = raw.strip()
     if raw.startswith("```"):
@@ -49,12 +73,14 @@ def _parse_response(raw: str) -> list[dict]:
     return json.loads(raw)
 
 
-def transcribe(audio_bytes: bytes, mime_type: str = "audio/mpeg") -> Transcript:
+def transcribe(audio_bytes: bytes, mime_type: str = "audio/mpeg", script: ScriptMode = "mixed") -> Transcript:
+    prompt = _build_prompt(script)
+
     if len(audio_bytes) <= _SIZE_THRESHOLD:
         response = _client.models.generate_content(
             model=_MODEL,
             contents=[
-                _PROMPT,
+                prompt,
                 types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
             ],
         )
@@ -70,7 +96,7 @@ def transcribe(audio_bytes: bytes, mime_type: str = "audio/mpeg") -> Transcript:
             )
             response = _client.models.generate_content(
                 model=_MODEL,
-                contents=[_PROMPT, uploaded],
+                contents=[prompt, uploaded],
             )
             _client.files.delete(name=uploaded.name)
         finally:

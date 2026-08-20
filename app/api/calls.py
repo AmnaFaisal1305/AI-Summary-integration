@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile
 
 from app.models.schemas import ProcessResult, Transcript
 from app.services import summarization, transcription
+from app.services.transcription import ScriptMode
 
 router = APIRouter(prefix="/calls", tags=["calls"])
 
@@ -42,10 +43,11 @@ def _mime_from_file(filename: str, content_type: str | None) -> str:
 def process_file(
     audio: Annotated[UploadFile, File()],
     call_id: Annotated[str | None, Form()] = None,
+    script: Annotated[ScriptMode, Form()] = "mixed",
 ):
     mime = _mime_from_file(audio.filename, audio.content_type)
     audio_bytes = audio.file.read()
-    transcript = transcription.transcribe(audio_bytes, mime)
+    transcript = transcription.transcribe(audio_bytes, mime, script=script)
     summary = summarization.summarize(transcript)
     return ProcessResult(call_id=call_id, transcript=transcript, summary=summary)
 
@@ -54,11 +56,12 @@ def process_file(
 def process_url(body: Annotated[dict, Body()]):
     audio_url: str = body.get("audio_url", "").strip()
     call_id: str | None = body.get("call_id")
+    script: ScriptMode = body.get("script", "mixed")
     if not audio_url:
         raise HTTPException(status_code=422, detail="Provide 'audio_url'.")
 
     audio_bytes, mime = _fetch_url(audio_url)
-    transcript = transcription.transcribe(audio_bytes, mime)
+    transcript = transcription.transcribe(audio_bytes, mime, script=script)
     summary = summarization.summarize(transcript)
     return ProcessResult(call_id=call_id, transcript=transcript, summary=summary)
 
@@ -68,17 +71,19 @@ def process_url(body: Annotated[dict, Body()]):
 @router.post("/transcribe", response_model=Transcript, summary="Transcribe audio file only")
 def transcribe_file(
     audio: Annotated[UploadFile, File()],
+    script: Annotated[ScriptMode, Form()] = "mixed",
 ):
     mime = _mime_from_file(audio.filename, audio.content_type)
     audio_bytes = audio.file.read()
-    return transcription.transcribe(audio_bytes, mime)
+    return transcription.transcribe(audio_bytes, mime, script=script)
 
 
 @router.post("/transcribe-url", response_model=Transcript, summary="Transcribe audio URL only")
 def transcribe_url(body: Annotated[dict, Body()]):
     audio_url: str = body.get("audio_url", "").strip()
+    script: ScriptMode = body.get("script", "mixed")
     if not audio_url:
         raise HTTPException(status_code=422, detail="Provide 'audio_url'.")
 
     audio_bytes, mime = _fetch_url(audio_url)
-    return transcription.transcribe(audio_bytes, mime)
+    return transcription.transcribe(audio_bytes, mime, script=script)
