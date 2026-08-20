@@ -36,21 +36,33 @@ class CallSummary(BaseModel):
 
 
 class ProcessResult(BaseModel):
-    call_id: str | None = None
+    call_id: str
     transcript: Transcript
+    summary: CallSummary
+
+
+class TranscribeResult(BaseModel):
+    call_id: str
+    transcript: Transcript
+
+
+class SummarizeResult(BaseModel):
+    call_id: str
     summary: CallSummary
 
 
 class ProcessUrlRequest(BaseModel):
     audio_url: str
-    call_id: str | None = None
+    call_id: str
     script: ScriptMode = "mixed"
 
 
 class TranscribeUrlRequest(BaseModel):
     audio_url: str
+    call_id: str
     script: ScriptMode = "mixed"
 
 
 class SummarizeUrlRequest(BaseModel):
     audio_url: str
+    call_id: str

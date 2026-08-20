@@ -2,14 +2,14 @@ import mimetypes
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, UploadFile
 
 from app.models.schemas import (
-    CallSummary,
     ProcessResult,
     ProcessUrlRequest,
+    SummarizeResult,
     SummarizeUrlRequest,
-    Transcript,
+    TranscribeResult,
     TranscribeUrlRequest,
 )
 from app.services import summarization, transcription
@@ -49,7 +49,7 @@ def _mime_from_file(filename: str, content_type: str | None) -> str:
 @router.post("/process", response_model=ProcessResult, summary="Transcribe + summarize audio file")
 def process_file(
     audio: Annotated[UploadFile, File()],
-    call_id: Annotated[str | None, Form()] = None,
+    call_id: Annotated[str, Form()],
     script: Annotated[ScriptMode, Form()] = "mixed",
 ):
     mime = _mime_from_file(audio.filename, audio.content_type)
@@ -67,38 +67,40 @@ def process_url(body: ProcessUrlRequest):
     return ProcessResult(call_id=body.call_id, transcript=transcript, summary=summary)
 
 
-# ── transcribe only ───────────────────────────────────────────────────────────
+# ── summarize only ────────────────────────────────────────────────────────────
 
-@router.post("/summarize", response_model=CallSummary, summary="Transcribe + summarize audio file — return summary only")
+@router.post("/summarize", response_model=SummarizeResult, summary="Transcribe + summarize audio file — return summary only")
 def summarize_file(
     audio: Annotated[UploadFile, File()],
+    call_id: Annotated[str, Form()],
 ):
     mime = _mime_from_file(audio.filename, audio.content_type)
     audio_bytes = audio.file.read()
     transcript = transcription.transcribe(audio_bytes, mime, script="mixed")
-    return summarization.summarize(transcript)
+    return SummarizeResult(call_id=call_id, summary=summarization.summarize(transcript))
 
 
-@router.post("/summarize-url", response_model=CallSummary, summary="Transcribe + summarize audio URL — return summary only")
+@router.post("/summarize-url", response_model=SummarizeResult, summary="Transcribe + summarize audio URL — return summary only")
 def summarize_url(body: SummarizeUrlRequest):
     audio_bytes, mime = _fetch_url(body.audio_url)
     transcript = transcription.transcribe(audio_bytes, mime, script="mixed")
-    return summarization.summarize(transcript)
+    return SummarizeResult(call_id=body.call_id, summary=summarization.summarize(transcript))
 
 
 # ── transcribe only ───────────────────────────────────────────────────────────
 
-@router.post("/transcribe", response_model=Transcript, summary="Transcribe audio file only")
+@router.post("/transcribe", response_model=TranscribeResult, summary="Transcribe audio file only")
 def transcribe_file(
     audio: Annotated[UploadFile, File()],
+    call_id: Annotated[str, Form()],
     script: Annotated[ScriptMode, Form()] = "mixed",
 ):
     mime = _mime_from_file(audio.filename, audio.content_type)
     audio_bytes = audio.file.read()
-    return transcription.transcribe(audio_bytes, mime, script=script)
+    return TranscribeResult(call_id=call_id, transcript=transcription.transcribe(audio_bytes, mime, script=script))
 
 
-@router.post("/transcribe-url", response_model=Transcript, summary="Transcribe audio URL only")
+@router.post("/transcribe-url", response_model=TranscribeResult, summary="Transcribe audio URL only")
 def transcribe_url(body: TranscribeUrlRequest):
     audio_bytes, mime = _fetch_url(body.audio_url)
-    return transcription.transcribe(audio_bytes, mime, script=body.script)
+    return TranscribeResult(call_id=body.call_id, transcript=transcription.transcribe(audio_bytes, mime, script=body.script))
