@@ -1,1 +1,4 @@
-from app.main import app  # noqa: F401 — Vercel picks up `app` from this module
+from mangum import Mangum
+from app.main import app
+
+handler = Mangum(app, lifespan="off")
