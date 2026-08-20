@@ -34,13 +34,20 @@ async def swagger_ui() -> HTMLResponse:
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
-    app.openapi_schema = get_openapi(
+    schema = get_openapi(
         title=app.title,
         version=app.version,
         description=app.description,
         routes=app.routes,
         openapi_version="3.0.3",
     )
+    # Swagger UI 4.x needs format:binary, not contentMediaType
+    for component in schema.get("components", {}).get("schemas", {}).values():
+        for prop in component.get("properties", {}).values():
+            if prop.get("contentMediaType") == "application/octet-stream":
+                prop.pop("contentMediaType", None)
+                prop["format"] = "binary"
+    app.openapi_schema = schema
     return app.openapi_schema
 
 
