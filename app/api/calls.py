@@ -71,23 +71,21 @@ def process_url(body: Annotated[dict, Body()]):
 @router.post("/summarize", response_model=CallSummary, summary="Transcribe + summarize audio file — return summary only")
 def summarize_file(
     audio: Annotated[UploadFile, File()],
-    script: Annotated[ScriptMode, Form()] = "mixed",
 ):
     mime = _mime_from_file(audio.filename, audio.content_type)
     audio_bytes = audio.file.read()
-    transcript = transcription.transcribe(audio_bytes, mime, script=script)
+    transcript = transcription.transcribe(audio_bytes, mime, script="mixed")
     return summarization.summarize(transcript)
 
 
 @router.post("/summarize-url", response_model=CallSummary, summary="Transcribe + summarize audio URL — return summary only")
 def summarize_url(body: Annotated[dict, Body()]):
     audio_url: str = body.get("audio_url", "").strip()
-    script: ScriptMode = body.get("script", "mixed")
     if not audio_url:
         raise HTTPException(status_code=422, detail="Provide 'audio_url'.")
 
     audio_bytes, mime = _fetch_url(audio_url)
-    transcript = transcription.transcribe(audio_bytes, mime, script=script)
+    transcript = transcription.transcribe(audio_bytes, mime, script="mixed")
     return summarization.summarize(transcript)
 
 
