@@ -9,6 +9,7 @@ app = FastAPI(
     description="Transcribe and summarize call recordings via Gemini 3.6 Flash and Groq GPT-OSS 20B.",
     version="2.0.0",
     docs_url=None,
+    redoc_url=None,
 )
 
 app.include_router(calls_router)
@@ -20,10 +21,19 @@ def health():
 
 
 @app.get("/docs", include_in_schema=False)
-def custom_docs() -> HTMLResponse:
+async def swagger_ui() -> HTMLResponse:
     return get_swagger_ui_html(
         openapi_url="/openapi.json",
-        title="CRM Pipeline API Docs",
-        swagger_js_url="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js",
-        swagger_css_url="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css",
+        title="CRM Pipeline — API Docs",
+        swagger_js_url="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js",
+        swagger_css_url="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css",
+    )
+
+
+@app.get("/redoc", include_in_schema=False)
+async def redoc_ui() -> HTMLResponse:
+    from fastapi.openapi.docs import get_redoc_html
+    return get_redoc_html(
+        openapi_url="/openapi.json",
+        title="CRM Pipeline — ReDoc",
     )
