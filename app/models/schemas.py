@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+ScriptMode = Literal["urdu", "roman_urdu", "mixed"]
+
 
 class TranscriptSegment(BaseModel):
     speaker: str
@@ -37,3 +39,18 @@ class ProcessResult(BaseModel):
     call_id: str | None = None
     transcript: Transcript
     summary: CallSummary
+
+
+class ProcessUrlRequest(BaseModel):
+    audio_url: str
+    call_id: str | None = None
+    script: ScriptMode = "mixed"
+
+
+class TranscribeUrlRequest(BaseModel):
+    audio_url: str
+    script: ScriptMode = "mixed"
+
+
+class SummarizeUrlRequest(BaseModel):
+    audio_url: str
