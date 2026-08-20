@@ -25,8 +25,8 @@ async def swagger_ui() -> HTMLResponse:
     return get_swagger_ui_html(
         openapi_url="/openapi.json",
         title="CRM Pipeline — API Docs",
-        swagger_js_url="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js",
-        swagger_css_url="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css",
+        swagger_js_url="https://unpkg.com/swagger-ui-dist@4.18.3/swagger-ui-bundle.js",
+        swagger_css_url="https://unpkg.com/swagger-ui-dist@4.18.3/swagger-ui.css",
     )
 
 
