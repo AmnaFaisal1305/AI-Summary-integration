@@ -1,4 +1,1 @@
-from mangum import Mangum
-from app.main import app
-
-handler = Mangum(app, lifespan="off")
+from app.main import app  # noqa: F401
