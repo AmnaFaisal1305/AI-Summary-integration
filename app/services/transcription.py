@@ -78,6 +78,6 @@ def transcribe(audio_bytes: bytes, mime_type: str = "audio/mpeg") -> Transcript:
 
     segments_data = _parse_response(response.text)
     segments = [TranscriptSegment(**seg) for seg in segments_data]
-    full_text = "\n".join(f"[{s.speaker}] {s.text}" for s in segments)
+    full_text = "\n".join(f"[{s.speaker}] ({s.start_time:.1f}s-{s.end_time:.1f}s) {s.text}" for s in segments)
 
     return Transcript(segments=segments, full_text=full_text)
